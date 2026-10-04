@@ -315,3 +315,11 @@ button { font-family: inherit; }
 
 /* Utility: hidden attribute must always win over display rules */
 [hidden] { display: none !important; }
+
+/* ---------- Growth chart ---------- */
+.chart-card .growth-svg { width: 100%; height: auto; display: block; margin: 6px 0 2px; }
+.chart-callout { font-size: 15.5px; margin: 8px 0 2px; }
+.chart-callout strong { color: var(--accent); }
+.small { font-size: 12.5px; }
+.dob-edit { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); }
+.dob-edit input { margin-left: 8px; font-size: 15px; }

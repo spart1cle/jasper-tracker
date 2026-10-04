@@ -250,6 +250,7 @@ const S = {
   history: { weeks: [] },
   checkin: null,      // today's checkin doc
   weighins: [],
+  dob: null,          // Jasper's birthdate (YYYY-MM-DD), from config/settings
   saveTimer: null,
 };
 
@@ -366,6 +367,7 @@ async function boot() {
   S.history = hsnap.exists() ? hsnap.data() : { weeks: [] };
   await loadCheckin();
   await loadWeighins();
+  await loadDob();
   attachLiveListeners();
   renderAll();
   switchTab('today');
@@ -816,13 +818,19 @@ function renderProgress() {
     const latest = ws[0], prev = ws[ws.length - 1];
     const diff = (Number(latest.weight) - Number(prev.weight)).toFixed(1);
     const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '—';
-    trendHtml = `<div class="trend">${arrow} ${Math.abs(diff)} lb since ${esc(prev.date)} (goal: 40th → 50th percentile, gradual)</div>`;
+    let pctMove = '';
+    if (S.dob) {
+      const pl = weighinPoint(latest), pp = weighinPoint(prev);
+      if (pl && pp) pctMove = ` (${ordinal(Math.round(pp.pct))} → ${ordinal(Math.round(pl.pct))} percentile)`;
+    }
+    trendHtml = `<div class="trend">${arrow} ${Math.abs(diff)} lb since ${esc(prev.date)}${pctMove} (goal: 40th → 50th percentile, gradual)</div>`;
   } else if (ws.length === 1) {
     trendHtml = `<div class="trend">First weigh-in logged — the trend builds from here. Goal: 40th → 50th percentile.</div>`;
   }
 
   let html = `<h2>Progress</h2>
     <p class="muted">Weigh-ins for the 40th → 50th percentile goal. Food-first and gradual — the pediatrician stays in the loop.</p>
+    ${growthSectionHtml()}
     ${trendHtml}
     <div class="card form-card">
       <h3>Log a weigh-in</h3>
@@ -837,10 +845,27 @@ function renderProgress() {
     html += `<p class="muted">No weigh-ins yet.</p>`;
   } else {
     for (const w of ws) {
-      html += `<div class="weighin-row"><span><strong>${esc(String(w.weight))} lb</strong> — ${esc(w.date)}${w.note ? `<br><span class="muted">${esc(w.note)}</span>` : ''}</span></div>`;
+      let pctTag = '';
+      if (S.dob) {
+        const pt = weighinPoint(w);
+        if (pt) pctTag = ` <span class="muted">· ${ordinal(Math.round(pt.pct))} pct</span>`;
+      }
+      html += `<div class="weighin-row"><span><strong>${esc(String(w.weight))} lb</strong> — ${esc(w.date)}${pctTag}${w.note ? `<br><span class="muted">${esc(w.note)}</span>` : ''}</span></div>`;
     }
   }
   panel.innerHTML = html;
+
+  const dobSave = $('#dob-save');
+  if (dobSave) dobSave.addEventListener('click', async () => {
+    const v = $('#dob-input').value;
+    if (!v) { toast('Pick a birthdate.'); return; }
+    try {
+      await setDoc(doc(db, 'config', 'settings'), { dob: v }, { merge: true });
+      S.dob = v;
+      renderProgress();
+      toast('Birthdate saved — growth chart is live.');
+    } catch (e) { handleDbError(e); }
+  });
 
   $('#wi-add').addEventListener('click', async () => {
     const date = $('#wi-date').value;
@@ -856,3 +881,187 @@ function renderProgress() {
 
 /* ---------- boot: show login until auth resolves ---------- */
 $('#login-screen').hidden = false;
+
+/* ============================================================
+   GROWTH CHART — CDC weight-for-age percentiles (boys, 2–20y)
+   Curves: CDC 2000 growth chart LMS tables (cdc-data.js).
+   Family weighs in lb; CDC math is metric, converted internally.
+   ============================================================ */
+const LB_TO_KG = 0.45359237;
+const KG_TO_LB = 1 / LB_TO_KG;
+
+function lmsAt(ageMonths) {
+  const T = CDC_WTAGE_BOYS;
+  let i = 0;
+  while (i < T.length - 2 && T[i + 1][0] < ageMonths) i++;
+  const a = T[i], b = T[i + 1];
+  const t = b[0] === a[0] ? 0 : Math.min(1, Math.max(0, (ageMonths - a[0]) / (b[0] - a[0])));
+  return [a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t];
+}
+
+function erf(x) {
+  const t = 1 / (1 + 0.3275911 * Math.abs(x));
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) * Math.exp(-x * x);
+  return x < 0 ? -y : y;
+}
+const normCdf = z => 0.5 * (1 + erf(z / Math.SQRT2));
+
+function normInv(p) {
+  // Acklam's approximation; p in (0,1)
+  const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.3577518672690, -30.66479806614716, 2.506628277459239];
+  const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+  const c = [-0.007784894002430293, -0.32239696458041136, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+  const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+  const plow = 0.02425, phigh = 1 - plow;
+  let q, x;
+  if (p < plow) {
+    q = Math.sqrt(-2 * Math.log(p));
+    x = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  } else if (p <= phigh) {
+    q = p - 0.5; const r = q * q;
+    x = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  } else {
+    q = Math.sqrt(-2 * Math.log(1 - p));
+    x = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  return x;
+}
+
+/* kg at percentile p (0-100) for a given age in months */
+function cdcWeightForPercentile(p, ageMonths) {
+  const pc = Math.min(99.999, Math.max(0.001, p));
+  const [L, M, S] = lmsAt(ageMonths);
+  const z = normInv(pc / 100);
+  return Math.abs(L) < 1e-9 ? M * Math.exp(S * z) : M * Math.pow(1 + L * S * z, 1 / L);
+}
+
+/* percentile (0-100) for a weight in kg at a given age in months */
+function cdcPercentileForWeight(kg, ageMonths) {
+  if (!(kg > 0) || ageMonths == null) return null;
+  const [L, M, S] = lmsAt(ageMonths);
+  const z = Math.abs(L) < 1e-9 ? Math.log(kg / M) / S : (Math.pow(kg / M, L) - 1) / (L * S);
+  return normCdf(z) * 100;
+}
+
+function ageMonthsOn(dateStr) {
+  if (!S.dob || !dateStr) return null;
+  const ms = new Date(dateStr + 'T12:00:00') - new Date(S.dob + 'T12:00:00');
+  return ms / (864e5 * 30.4375);
+}
+
+function weighinPoint(w) {
+  const m = ageMonthsOn(w.date);
+  const kg = Number(w.weight) * LB_TO_KG;
+  if (m == null || !(kg > 0)) return null;
+  return { ...w, m, kg, pct: cdcPercentileForWeight(kg, m) };
+}
+
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+async function loadDob() {
+  try {
+    const s = await getDoc(doc(db, 'config', 'settings'));
+    S.dob = s.exists() ? (s.data().dob || null) : null;
+  } catch (e) { S.dob = null; }
+}
+
+function growthSectionHtml() {
+  if (!S.dob) {
+    return `<div class="card">
+      <h3>Growth chart</h3>
+      <p class="muted">Enter Jasper's birthdate once to plot weigh-ins against the official CDC growth curves.</p>
+      <label>Birthdate <input id="dob-input" type="date" max="${todayKey()}"></label>
+      <div class="toolbar"><button id="dob-save" class="btn-primary">Save birthdate</button></div>
+    </div>`;
+  }
+  const pts = S.weighins.map(weighinPoint).filter(Boolean).sort((a, b) => a.m - b.m);
+  let callout = '';
+  if (pts.length) {
+    const last = pts[pts.length - 1];
+    callout = `<div class="chart-callout"><strong>${esc(String(last.weight))} lb</strong> on ${esc(last.date)} → <strong>${ordinal(Math.round(last.pct))} percentile</strong> <span class="muted">(goal: 50th)</span></div>`;
+  } else {
+    callout = `<div class="chart-callout muted">Log a weigh-in below to start the trend line.</div>`;
+  }
+  return `<div class="card chart-card">
+    <h3>Growth chart <span class="muted">· CDC weight-for-age, boys</span></h3>
+    ${callout}
+    ${growthChartSvg(pts)}
+    <p class="muted small">Curves: CDC 2000 growth charts (LMS). Shaded band: 40th–50th percentile goal zone.</p>
+    <label class="dob-edit">Birthdate <input id="dob-input" type="date" value="${esc(S.dob)}" max="${todayKey()}"></label>
+    <div class="toolbar"><button id="dob-save" class="btn-secondary">Update birthdate</button></div>
+  </div>`;
+}
+
+function growthChartSvg(pts) {
+  const W = 660, H = 400, ML = 48, MR = 52, MT = 14, MB = 34;
+  const ageNowM = ageMonthsOn(todayKey()) || 96;
+  const endAge = Math.min(20, Math.ceil(ageNowM / 12) + 2);
+  const startAge = Math.max(2, endAge - 5);
+  const startM = startAge * 12, endM = endAge * 12;
+  const inWin = pts.filter(p => p.m >= startM - 2 && p.m <= endM + 2);
+
+  const curves = {};
+  for (const p of [5, 10, 25, 40, 50, 75, 90, 95]) {
+    const arr = [];
+    for (let m = startM; m <= endM; m += 2) arr.push([m, cdcWeightForPercentile(p, m) * KG_TO_LB]);
+    curves[p] = arr;
+  }
+  let yMin = Infinity, yMax = -Infinity;
+  for (const p of [5, 95]) for (const [, lb] of curves[p]) { yMin = Math.min(yMin, lb); yMax = Math.max(yMax, lb); }
+  for (const w of inWin) { const lb = w.kg * KG_TO_LB; yMin = Math.min(yMin, lb); yMax = Math.max(yMax, lb); }
+  const pad = (yMax - yMin) * 0.09 || 2;
+  yMin -= pad; yMax += pad;
+
+  const X = m => ML + ((m - startM) / (endM - startM)) * (W - ML - MR);
+  const Y = lb => MT + (1 - (lb - yMin) / (yMax - yMin)) * (H - MT - MB);
+  const line = arr => 'M' + arr.map(([m, lb]) => `${X(m).toFixed(1)},${Y(lb).toFixed(1)}`).join('L');
+
+  const niceStep = r => { const mag = Math.pow(10, Math.floor(Math.log10(r))); const n = r / mag; return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * mag; };
+  let s = '';
+  // goal band 40th–50th
+  const band = curves[40].map(([m, lb]) => [X(m), Y(lb)])
+    .concat(curves[50].slice().reverse().map(([m, lb]) => [X(m), Y(lb)]));
+  s += `<polygon points="${band.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="#2e7d4f" opacity="0.14"/>`;
+  // gridlines + y labels
+  const step = niceStep((yMax - yMin) / 5);
+  for (let t = Math.ceil(yMin / step) * step; t <= yMax; t += step) {
+    s += `<line x1="${ML}" y1="${Y(t).toFixed(1)}" x2="${W - MR}" y2="${Y(t).toFixed(1)}" stroke="#ece4d4" stroke-width="1"/>`;
+    s += `<text x="${ML - 8}" y="${(Y(t) + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="#8a7d63">${t}</text>`;
+  }
+  // x ticks yearly
+  for (let a = startAge; a <= endAge; a++) {
+    const x = X(a * 12);
+    s += `<line x1="${x.toFixed(1)}" y1="${MT}" x2="${x.toFixed(1)}" y2="${H - MB}" stroke="#ece4d4" stroke-width="1" stroke-dasharray="3,4"/>`;
+    s += `<text x="${x.toFixed(1)}" y="${H - MB + 18}" text-anchor="middle" font-size="11" fill="#8a7d63">${a}y</text>`;
+  }
+  // percentile curves
+  for (const p of [5, 10, 25, 75, 90, 95]) {
+    s += `<path d="${line(curves[p])}" fill="none" stroke="#c9c2b2" stroke-width="1.2"/>`;
+  }
+  s += `<path d="${line(curves[50])}" fill="none" stroke="#2e7d4f" stroke-width="2.2"/>`;
+  // right-edge percentile labels
+  for (const p of [5, 25, 50, 75, 95]) {
+    const lastPt = curves[p][curves[p].length - 1];
+    s += `<text x="${W - MR + 6}" y="${(Y(lastPt[1]) + 4).toFixed(1)}" font-size="11" fill="${p === 50 ? '#2e7d4f' : '#8a7d63'}" font-weight="${p === 50 ? '700' : '400'}">${p}th</text>`;
+  }
+  // axes
+  s += `<line x1="${ML}" y1="${MT}" x2="${ML}" y2="${H - MB}" stroke="#8a7d63" stroke-width="1"/>`;
+  s += `<line x1="${ML}" y1="${H - MB}" x2="${W - MR}" y2="${H - MB}" stroke="#8a7d63" stroke-width="1"/>`;
+  s += `<text x="${ML - 8}" y="10" text-anchor="end" font-size="11" fill="#8a7d63">lb</text>`;
+  // weigh-ins
+  if (inWin.length) {
+    s += `<polyline points="${inWin.map(w => `${X(w.m).toFixed(1)},${Y(w.kg * KG_TO_LB).toFixed(1)}`).join(' ')}" fill="none" stroke="#2e7d4f" stroke-width="2.4"/>`;
+    for (const w of inWin) {
+      const lb = w.kg * KG_TO_LB;
+      s += `<circle cx="${X(w.m).toFixed(1)}" cy="${Y(lb).toFixed(1)}" r="5" fill="#2e7d4f" stroke="#fff" stroke-width="2"><title>${esc(w.date)} — ${esc(String(w.weight))} lb (${ordinal(Math.round(w.pct))} percentile)</title></circle>`;
+    }
+    const last = inWin[inWin.length - 1];
+    const lx = X(last.m), ly = Y(last.kg * KG_TO_LB);
+    const tx = Math.min(lx + 12, W - MR - 120);
+    s += `<text x="${tx.toFixed(1)}" y="${(ly - 12).toFixed(1)}" font-size="12" font-weight="700" fill="#2e7d4f">${esc(String(last.weight))} lb · ${ordinal(Math.round(last.pct))}</text>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" class="growth-svg" role="img" aria-label="Weight-for-age growth chart">${s}</svg>`;
+}
