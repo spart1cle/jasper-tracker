@@ -1,0 +1,317 @@
+/* Jasper's Meal Tracker — warm, mobile-first, family app.
+   Big touch targets. All text wraps in full; nothing is truncated. */
+
+:root {
+  --bg: #faf7f2;
+  --card: #ffffff;
+  --ink: #3a3226;
+  --muted: #8a7d63;
+  --accent: #2e7d4f;
+  --accent-soft: #e7f2ea;
+  --warn-bg: #fff8e7;
+  --warn-border: #ecd9a8;
+  --warn-ink: #8a6d1a;
+  --border: #ece4d4;
+  --radius: 14px;
+  --nav-h: 64px;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------- Login / denied screens ---------- */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.login-card {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 36px 28px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 4px 24px rgba(58, 50, 38, 0.08);
+}
+.login-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+.login-sub { color: var(--muted); font-size: 15px; margin: 0 0 24px; }
+
+/* ---------- App frame ---------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 5;
+}
+.app-title { font-size: 19px; font-weight: 700; }
+.user-line { font-size: 12px; color: var(--muted); }
+
+#main { padding: 4px 14px calc(var(--nav-h) + 28px); max-width: 640px; margin: 0 auto; }
+.tab-panel h2 { margin: 10px 2px 4px; font-size: 22px; }
+.muted { color: var(--muted); }
+.error-text { color: #b3261e; font-size: 14px; }
+
+/* ---------- Bottom nav ---------- */
+.bottomnav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: var(--nav-h);
+  display: flex;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  z-index: 10;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn {
+  flex: 1;
+  border: 0;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.25;
+  min-height: var(--nav-h);
+  cursor: pointer;
+}
+.nav-btn.active { color: var(--accent); }
+
+/* ---------- Cards & lists ---------- */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 12px;
+  box-shadow: 0 1px 6px rgba(58, 50, 38, 0.05);
+}
+.card h3 { margin: 0 0 8px; font-size: 16px; }
+.card p { margin: 8px 0; }
+.plain-list { margin: 6px 0; padding-left: 20px; }
+.plain-list li { margin-bottom: 8px; }
+
+.notice {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-top: 12px;
+  font-size: 14px;
+}
+.notice strong { color: var(--warn-ink); }
+
+.section-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+  margin: 18px 2px 4px;
+  text-transform: uppercase;
+}
+
+/* ---------- Buttons ---------- */
+button { font-family: inherit; }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 48px;
+}
+.btn-primary:active { opacity: 0.85; }
+.btn-large { width: 100%; font-size: 17px; }
+.btn-secondary {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+}
+.btn-ghost {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 12px;
+  min-height: 44px;
+}
+
+/* ---------- Tappable option cards (never <select>) ---------- */
+.opt-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-top: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  min-height: 52px;
+  /* text always wraps in full — never truncated */
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.opt-card.selected { border-color: var(--accent); background: var(--accent-soft); }
+.opt-card .sub { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* ---------- Slot rows on Today tab ---------- */
+.slot-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+.slot-check {
+  width: 30px; height: 30px;
+  flex: 0 0 30px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.slot-body { flex: 1; min-width: 0; }
+.slot-name { font-size: 12px; font-weight: 700; letter-spacing: 0.8px; color: var(--muted); text-transform: uppercase; }
+.slot-pick { font-size: 16px; margin-top: 2px; }
+.slot-pick.empty { color: var(--muted); font-style: italic; }
+.slot-change {
+  border: 0; background: var(--accent-soft); color: var(--accent);
+  border-radius: 10px; padding: 10px 14px; font-weight: 700; font-size: 14px;
+  cursor: pointer; min-height: 44px; flex: 0 0 auto;
+}
+
+/* ---------- Pool cards ---------- */
+.pool-card { position: relative; }
+.pool-items { margin-top: 6px; }
+.pool-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 4px;
+  border-bottom: 1px solid #f3ede0;
+  font-size: 15px;
+}
+.pool-item:last-child { border-bottom: 0; }
+.pool-item span { flex: 1; }
+.swap-btn {
+  border: 0; background: none; color: var(--accent);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  padding: 8px 6px; min-height: 36px; flex: 0 0 auto;
+}
+
+/* ---------- Shop checklist ---------- */
+.shop-progress {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.shop-progress .bar {
+  height: 8px; background: #eee5d2; border-radius: 4px; margin-top: 8px; overflow: hidden;
+}
+.shop-progress .bar > div { height: 100%; background: var(--accent); border-radius: 4px; }
+.shop-section { margin-top: 14px; }
+.shop-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--card);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  min-height: 52px;
+}
+.shop-item input {
+  width: 24px; height: 24px; flex: 0 0 24px; margin-top: 1px;
+  accent-color: var(--accent); cursor: pointer;
+}
+.shop-item.done span { text-decoration: line-through; color: var(--muted); }
+.shop-item .qty { color: var(--muted); font-size: 14px; }
+.add-row { display: flex; gap: 8px; margin-top: 12px; }
+.add-row input {
+  flex: 1; border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; font-size: 16px; font-family: inherit; min-height: 48px;
+}
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+/* ---------- Forms (weigh-ins) ---------- */
+.form-card label { display: block; font-size: 14px; font-weight: 600; margin-top: 10px; }
+.form-card input {
+  width: 100%; border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; font-size: 16px; font-family: inherit; margin-top: 4px; min-height: 48px;
+}
+.weighin-row {
+  display: flex; justify-content: space-between; gap: 10px;
+  background: var(--card); border-radius: 10px; padding: 12px 14px; margin-top: 8px;
+  font-size: 15px;
+}
+.trend { font-size: 15px; font-weight: 600; margin-top: 12px; }
+
+/* ---------- Picker overlay ---------- */
+.overlay {
+  position: fixed; inset: 0; background: rgba(40, 32, 20, 0.45);
+  display: flex; align-items: flex-end; justify-content: center; z-index: 50;
+}
+.picker-sheet {
+  background: var(--bg);
+  width: 100%; max-width: 640px;
+  max-height: 82vh;
+  border-radius: 20px 20px 0 0;
+  padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+.picker-head { display: flex; align-items: center; justify-content: space-between; }
+.picker-title { font-size: 18px; font-weight: 700; }
+.picker-options { padding-bottom: 8px; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--nav-h) + 18px);
+  background: var(--ink); color: #fff;
+  border-radius: 10px; padding: 12px 18px;
+  font-size: 14px; z-index: 100;
+  max-width: 90vw; text-align: center;
+}
+
+@media (min-width: 700px) {
+  .overlay { align-items: center; padding: 24px; }
+  .picker-sheet { border-radius: 20px; }
+}
+
+/* Utility: hidden attribute must always win over display rules */
+[hidden] { display: none !important; }

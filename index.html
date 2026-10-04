@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jasper's Meal Tracker</title>
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">
+{
+  "imports": {
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<!-- Login gate: unauthenticated visitors see ONLY this. No app content leaks. -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-title">Jasper's Meal Tracker</div>
+    <p class="login-sub">A private family space for Jasper's meals, snacks, and weight goal.</p>
+    <button id="google-signin" class="btn-primary btn-large">Sign in with Google</button>
+    <p id="login-error" class="error-text" hidden></p>
+  </div>
+</div>
+
+<!-- Not-authorized state (signed in, but Firestore rules deny access) -->
+<div id="denied-screen" class="login-screen" hidden>
+  <div class="login-card">
+    <div class="login-title">Not authorized</div>
+    <p class="login-sub">This tracker is private to the family. The account you signed in with isn't on the list — ask Brandon to add it.</p>
+    <button id="denied-signout" class="btn-secondary">Sign out</button>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header class="app-header">
+    <div>
+      <div class="app-title">Jasper's Meal Tracker</div>
+      <div id="user-line" class="user-line"></div>
+    </div>
+    <button id="signout" class="btn-ghost">Sign out</button>
+  </header>
+
+  <main id="main">
+    <section id="tab-today" class="tab-panel" hidden></section>
+    <section id="tab-pools" class="tab-panel" hidden></section>
+    <section id="tab-shop" class="tab-panel" hidden></section>
+    <section id="tab-progress" class="tab-panel" hidden></section>
+
+    <section id="tab-playbook" class="tab-panel" hidden>
+      <h2>Playbook</h2>
+      <p class="muted">The strategy behind the plan. Food-first, gradual, no supplements.</p>
+
+      <div class="card">
+        <h3>Timing is everything</h3>
+        <ul class="plain-list">
+          <li><strong>Breakfast BEFORE meds</strong> — he'll actually be hungry. Biggest calorie window of the day. Meds are taken after breakfast: ~7:30am on weekdays, ~8:30am on weekends.</li>
+          <li><strong>School lunch</strong> — he eats the school lunch. Only basic snacks can go to school.</li>
+          <li><strong>After-school grazing</strong> — meds are still active, so no big plates. Graze-able snacks he can eat without sitting down.</li>
+          <li><strong>Dinner AFTER meds wear off</strong> — evening rebound hunger. Second big window; serve the heaviest thing he'll eat.</li>
+          <li><strong>Eat on a schedule</strong> — don't wait for hunger cues. If you wait for him to say he's hungry, midday won't happen.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Calorie boosters (add to anything)</h3>
+        <ul class="plain-list">
+          <li>Butter or olive oil in cooking</li>
+          <li>Whole milk instead of water (oatmeal, cream of wheat, pancakes)</li>
+          <li>Cheese on everything</li>
+          <li>Honey or maple drizzle</li>
+          <li>Extra mayo</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Anytime smoothie (~500–700 cal)</h3>
+        <p>Whole milk + banana + cocoa + honey + a scoop of oats, blended. To keep it in the 500–700 range without peanut butter, use a generous half-cup of oats plus an extra drizzle of honey, or a splash of cream. Easy to get down when he's not hungry.</p>
+      </div>
+
+      <div class="card">
+        <h3>His words</h3>
+        <p>When asked directly, Jasper named his favorites: <strong>chicken nuggets, eggs, and fruit</strong>. The pools weight these heaviest.</p>
+        <p class="muted">He also likes spaghetti <strong>plain</strong> with butter (no cheese on top), and does <strong>not</strong> eat peanut butter — it never appears anywhere here.</p>
+      </div>
+
+      <div class="card">
+        <h3>Pediatrician</h3>
+        <p>Since this involves his growth and his medication, keep his pediatrician in the loop — they'll want to monitor the trend and may have input on the medication side. Goal: 40th back to 50th percentile, gradual and food-first.</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottomnav" aria-label="Main">
+    <button data-tab="today" class="nav-btn">Today's<br>meals</button>
+    <button data-tab="pools" class="nav-btn">Pools</button>
+    <button data-tab="shop" class="nav-btn">Shop</button>
+    <button data-tab="progress" class="nav-btn">Progress</button>
+    <button data-tab="playbook" class="nav-btn">Playbook</button>
+  </nav>
+</div>
+
+<!-- Generic picker overlay: tappable cards, never a <select> -->
+<div id="picker-overlay" class="overlay" hidden>
+  <div class="picker-sheet" role="dialog" aria-modal="true">
+    <div class="picker-head">
+      <div id="picker-title" class="picker-title"></div>
+      <button id="picker-close" class="btn-ghost">Close</button>
+    </div>
+    <div id="picker-options" class="picker-options"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
