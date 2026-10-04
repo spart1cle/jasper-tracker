@@ -6,7 +6,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from 'firebase/auth';
 import {
-  getFirestore, doc, getDoc, setDoc, updateDoc, deleteField, arrayUnion, collection, addDoc,
+  getFirestore, doc, getDoc, setDoc, updateDoc, deleteField, deleteDoc, arrayUnion, collection, addDoc,
   getDocs, query, orderBy, serverTimestamp, onSnapshot, runTransaction
 } from 'firebase/firestore';
 
@@ -588,6 +588,15 @@ async function addWeighin(date, weight, note) {
   renderProgress();
 }
 
+async function deleteWeighin(id) {
+  try {
+    await deleteDoc(doc(db, 'weighins', id));
+    S.weighins = S.weighins.filter(w => w.id !== id);
+    renderProgress();
+    toast('Weigh-in deleted.');
+  } catch (e) { handleDbError(e); }
+}
+
 /* ============================================================
    GENERIC PICKER — tappable cards, never a <select>
    ============================================================ */
@@ -850,14 +859,34 @@ function renderProgress() {
         const pt = weighinPoint(w);
         if (pt) pctTag = ` <span class="muted">· ${ordinal(Math.round(pt.pct))} pct</span>`;
       }
-      html += `<div class="weighin-row"><span><strong>${esc(String(w.weight))} lb</strong> — ${esc(w.date)}${pctTag}${w.note ? `<br><span class="muted">${esc(w.note)}</span>` : ''}</span></div>`;
+      html += `<div class="weighin-row"><span><strong>${esc(String(w.weight))} lb</strong> — ${esc(w.date)}${pctTag}${w.note ? `<br><span class="muted">${esc(w.note)}</span>` : ''}</span><button class="btn-ghost danger" data-del="${w.id}">Delete</button></div>`;
     }
   }
   panel.innerHTML = html;
 
+  // Two-tap delete: first tap arms, second tap deletes. Reverts after 4s.
+  let pendingDel = null, pendingDelTimer = null;
+  $$('[data-del]', panel).forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.del;
+    if (pendingDel === id) {
+      clearTimeout(pendingDelTimer);
+      pendingDel = null;
+      deleteWeighin(id);
+      return;
+    }
+    pendingDel = id;
+    btn.textContent = 'Confirm delete';
+    btn.classList.add('confirming');
+    clearTimeout(pendingDelTimer);
+    pendingDelTimer = setTimeout(() => {
+      pendingDel = null;
+      const b = panel.querySelector(`[data-del="${id}"]`);
+      if (b) { b.textContent = 'Delete'; b.classList.remove('confirming'); }
+    }, 4000);
+  }));
+
   const dobSave = $('#dob-save');
-  if (dobSave) dobSave.addEventListener('click', async () => {
-    const v = $('#dob-input').value;
+  if (dobSave) dobSave.addEventListener('click', async () => {    const v = $('#dob-input').value;
     if (!v) { toast('Pick a birthdate.'); return; }
     try {
       await setDoc(doc(db, 'config', 'settings'), { dob: v }, { merge: true });

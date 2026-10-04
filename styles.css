@@ -274,10 +274,12 @@ button { font-family: inherit; }
   padding: 12px; font-size: 16px; font-family: inherit; margin-top: 4px; min-height: 48px;
 }
 .weighin-row {
-  display: flex; justify-content: space-between; gap: 10px;
+  display: flex; justify-content: space-between; gap: 10px; align-items: center;
   background: var(--card); border-radius: 10px; padding: 12px 14px; margin-top: 8px;
   font-size: 15px;
 }
+.btn-ghost.danger { color: #b3261e; }
+.btn-ghost.confirming { background: #b3261e; color: #fff; border-radius: 10px; }
 .trend { font-size: 15px; font-weight: 600; margin-top: 12px; }
 
 /* ---------- Picker overlay ---------- */
